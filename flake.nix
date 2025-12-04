@@ -11,44 +11,32 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
 
-      # Evaluate a minimal NixOS configuration with the T2 module
-      # to extract the kernel packages it provides
-      evaluateT2Kernel = variant: (nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          nixos-hardware.nixosModules.apple-t2
-          {
-            hardware.apple-t2 = {
-              enableAppleSetOsLoader = true;
-              kernelVariant = variant; # "stable" or "latest"
-            };
-            # Minimal config just to evaluate
-            fileSystems."/" = { device = "none"; fsType = "tmpfs"; };
-            boot.loader.systemd-boot.enable = true;
-          }
-        ];
-      }).config.boot.kernelPackages;
+      # Import the T2 kernel packages from nixos-hardware
+      # Stable kernel (6.12.x currently)
+      linux-t2-stable-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2" { };
 
-      # Get both kernel variants from the T2 module
-      linux-t2-stable = evaluateT2Kernel "stable";
-      linux-t2-latest = evaluateT2Kernel "latest";
+      # Latest kernel (6.16.x currently)
+      linux-t2-latest-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2/latest.nix" { };
+
+      # Create full kernel package sets with modules
+      linux-t2-stable = pkgs.linuxPackagesFor linux-t2-stable-kernel;
+      linux-t2-latest = pkgs.linuxPackagesFor linux-t2-latest-kernel;
 
     in
     {
       packages.${system} = {
-        # Stable kernel (LTS)
-        linux-t2-lts = linux-t2-stable;
-        linux-t2-stable = linux-t2-stable;
+        # Full kernel package sets (kernel + modules)
+        inherit linux-t2-stable linux-t2-latest;
 
-        # Latest kernel
-        linux-t2-latest = linux-t2-latest;
+        # Alias for compatibility
+        linux-t2-lts = linux-t2-stable;
 
         default = linux-t2-latest;
 
-        # Also expose just the kernel packages
-        linux-t2-lts-kernel = linux-t2-stable.kernel;
+        # Just the kernel packages (no modules)
         linux-t2-stable-kernel = linux-t2-stable.kernel;
         linux-t2-latest-kernel = linux-t2-latest.kernel;
+        linux-t2-lts-kernel = linux-t2-stable.kernel;
       };
 
       # Make it easy to build all packages

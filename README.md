@@ -67,8 +67,7 @@ Add to your `/etc/nixos/configuration.nix`:
     (builtins.getFlake "github:YOUR_USERNAME/t2-kernel").nixosModules.default
   ];
   hardware.apple-t2 = {
-    enable = true;
-    kernelVariant = "latest"; # or "stable"
+    kernelChannel = "latest"; # or "stable"
   };
 }
 ```
@@ -86,9 +85,8 @@ Add to your `/etc/nixos/configuration.nix`:
     trusted-public-keys = [ "my-t2-kernels.cachix.org-1:YOUR_PUBLIC_KEY_HERE" ];
   };
 
-  hardware.t2 = {
-    enable = true;
-    kernelVariant = "latest"; # or "lts"
+  hardware.apple-t2 = {
+    kernelChannel = "latest"; # or "stable"
   };
 }
 ```
