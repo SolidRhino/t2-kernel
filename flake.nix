@@ -37,15 +37,15 @@
         linux-t2-stable-kernel = linux-t2-stable.kernel;
         linux-t2-latest-kernel = linux-t2-latest.kernel;
         linux-t2-lts-kernel = linux-t2-stable.kernel;
-      };
 
-      # Make it easy to build all packages
-      packages.${system}.all = pkgs.symlinkJoin {
-        name = "all-t2-kernels";
-        paths = [
-          linux-t2-stable.kernel
-          linux-t2-latest.kernel
-        ];
+        # Bundle all kernels together
+        all = pkgs.symlinkJoin {
+          name = "all-t2-kernels";
+          paths = [
+            linux-t2-stable.kernel
+            linux-t2-latest.kernel
+          ];
+        };
       };
 
       # Re-export the nixos-hardware T2 module for convenience
