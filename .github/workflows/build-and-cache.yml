@@ -18,7 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        kernel: [linux-t2-stable, linux-t2-latest]
+        # Temporarily disabled linux-t2-latest due to patch incompatibility with kernel 6.17
+        # nixos-hardware patches are for 6.16, which conflicts with 6.17
+        # Re-enable when nixos-hardware updates to 6.17
+        kernel: [linux-t2-stable]
+        # kernel: [linux-t2-stable, linux-t2-latest]
       fail-fast: false # Continue building other kernels if one fails
 
     steps:

@@ -215,13 +215,11 @@ nix flake check
 **Kernel version mismatch (EOL error):**
 - Symptom: `error: linux X.XX was removed because it has reached its end of life upstream`
 - Cause: nixos-hardware references a kernel version that nixpkgs has removed
-- Solution: Override the kernel version in flake.nix:
-  ```nix
-  linux-t2-latest-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2/latest.nix" {
-    linux_6_16 = pkgs.linuxKernel.kernels.linux_6_17;  # Override EOL kernel
-  };
-  ```
-- This is a temporary workaround until nixos-hardware updates
+- Attempted fix: Overriding kernel version causes patch incompatibility
+- **Current status**: linux-t2-latest temporarily disabled in build matrix
+- Reason: nixos-hardware patches for 6.16 conflict with 6.17 (patch `1007-HID-multitouch` already upstreamed)
+- Solution: Wait for nixos-hardware to update to kernel 6.17 with compatible patches
+- Alternative: Use linux-t2-stable (6.12.60) which builds successfully
 
 **Cachix auth failure:**
 - Regenerate token at app.cachix.org
