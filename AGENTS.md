@@ -212,6 +212,17 @@ nix flake check
 - Check: https://github.com/NixOS/nixos-hardware/issues
 - Temporarily pin to working commit in flake.nix
 
+**Kernel version mismatch (EOL error):**
+- Symptom: `error: linux X.XX was removed because it has reached its end of life upstream`
+- Cause: nixos-hardware references a kernel version that nixpkgs has removed
+- Solution: Override the kernel version in flake.nix:
+  ```nix
+  linux-t2-latest-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2/latest.nix" {
+    linux_6_16 = pkgs.linuxKernel.kernels.linux_6_17;  # Override EOL kernel
+  };
+  ```
+- This is a temporary workaround until nixos-hardware updates
+
 **Cachix auth failure:**
 - Regenerate token at app.cachix.org
 - Update `CACHIX_AUTH_TOKEN` secret
