@@ -33,8 +33,11 @@ Add these secrets to your GitHub repository (Settings → Secrets and variables 
 
 Push this repository to GitHub and the workflows will run automatically:
 
-- **Weekly on Mondays at 3 AM UTC** - Rebuilds kernels with latest nixpkgs versions
+- **Daily at 3 AM UTC** - Checks if nixos-hardware has updates
+  - If updates found: Creates a PR and builds the new kernels
+  - If no updates: Does nothing (saves CI minutes!)
 - **On push to main/master** - When flake.nix, flake.lock, or workflows change
+- **On pull requests** - Builds kernels to verify changes work
 - **Manually** - Via workflow_dispatch for on-demand builds
 
 ### 4. Use the Cache in NixOS
@@ -148,11 +151,21 @@ nix build .#all
 ## How It Works
 
 1. **Uses nixos-hardware** - This flake imports the `hardware.apple-t2` module from [nixos-hardware](https://github.com/NixOS/nixos-hardware) which provides properly patched T2 kernels
-2. **Exposes kernel packages** - Evaluates the T2 module to extract both "stable" and "latest" kernel variants
-3. **Weekly builds** - GitHub Actions runs `nix flake update` weekly to get the latest from nixos-hardware and nixpkgs, then builds the kernels
-4. **Automatic updates** - When nixos-hardware or nixpkgs update their kernels, weekly builds automatically pick up the new versions
-5. **Cachix stores binaries** - Built kernels are pushed to your Cachix cache
-6. **Fast downloads** - Your NixOS machine downloads pre-built binaries from Cachix instead of building locally
+2. **Exposes kernel packages** - Directly calls the T2 kernel packages to expose both "stable" and "latest" variants
+3. **Daily update checks** - GitHub Actions checks daily if nixos-hardware has new commits
+   - Compares the current and latest nixos-hardware commit hashes
+   - Only proceeds if there's an actual update (saves CI time!)
+4. **Smart building** - When updates are found:
+   - Creates a Pull Request with the changes
+   - Automatically triggers the build workflow
+   - Builds both stable and latest kernels
+   - Pushes to your Cachix cache
+5. **Fast downloads** - Your NixOS machine downloads pre-built binaries from Cachix instead of building locally (saves 1-2 hours!)
+
+**Why this is better than building weekly:**
+- ✅ Updates within 24 hours of upstream changes
+- ✅ Doesn't waste CI minutes when nothing changed
+- ✅ Catches all T2 updates (kernel, firmware, audio, TouchBar, etc.)
 
 This is exactly how caches like `cache.soopy.moe` work - they pre-build packages and serve them to users!
 

@@ -10,9 +10,7 @@ on:
       - 'flake.lock'
       - '.github/workflows/**'
   pull_request:
-  schedule:
-    # Build weekly on Monday at 3 AM UTC to pick up latest nixpkgs kernels
-    - cron: '0 3 * * 1'
+  workflow_call: # Allow being called by other workflows
   workflow_dispatch: # Allow manual triggering
 
 jobs:
