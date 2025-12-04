@@ -1,16 +1,15 @@
 # T2 Kernel Cache for NixOS
 
-Automated builds of Linux T2 kernels (LTS and latest) for Apple T2 hardware, cached with Cachix via GitHub Actions. This saves you from having to build kernels locally on your machine!
+Automated builds of Linux T2 kernels from nixos-hardware for Apple T2 hardware, cached with Cachix via GitHub Actions. This saves you from having to build kernels locally on your machine!
 
 ## What This Does
 
 Similar to [cache.soopy.moe](https://cache.soopy.moe), this repository:
 
-- 🔨 Builds `linux-t2-lts` (6.6.x) and `linux-t2-latest` (6.12.x) kernels with T2 patches
+- 🔨 Builds T2 kernels from [nixos-hardware](https://github.com/NixOS/nixos-hardware) - both stable and latest variants
 - 📦 Caches the built kernels on Cachix so you can download pre-built binaries
-- 🤖 **Automatically detects new kernel versions** and updates them daily
-- 🎯 **Only builds when new versions are available** - no wasted CI time!
-- 🔄 Checks kernel.org daily for updates and rebuilds automatically
+- 🔄 Uses nixos-hardware's T2 module - automatically stays updated as nixos-hardware updates
+- 📅 Rebuilds weekly to pick up the latest kernel versions
 - ⚡ Eliminates the need to compile kernels on your local machine (saves hours!)
 
 ## Setup Instructions
@@ -34,9 +33,9 @@ Add these secrets to your GitHub repository (Settings → Secrets and variables 
 
 Push this repository to GitHub and the workflows will run automatically:
 
-- **Daily at 3 AM UTC** - Checks for new kernel versions and builds if updates are found
-- **On push to main/master** - When flake.nix or workflows change
-- **Manually** - Via workflow_dispatch with option to force build
+- **Weekly on Mondays at 3 AM UTC** - Rebuilds kernels with latest nixpkgs versions
+- **On push to main/master** - When flake.nix, flake.lock, or workflows change
+- **Manually** - Via workflow_dispatch for on-demand builds
 
 ### 4. Use the Cache in NixOS
 
@@ -60,8 +59,17 @@ Add to your `/etc/nixos/configuration.nix`:
     ];
   };
 
-  # Use the flake
+  # Use the cached T2 kernels from this flake
   boot.kernelPackages = (builtins.getFlake "github:YOUR_USERNAME/t2-kernel").packages.x86_64-linux.linux-t2-latest;
+
+  # Or just use nixos-hardware directly (this flake re-exports it)
+  imports = [
+    (builtins.getFlake "github:YOUR_USERNAME/t2-kernel").nixosModules.default
+  ];
+  hardware.apple-t2 = {
+    enable = true;
+    kernelVariant = "latest"; # or "stable"
+  };
 }
 ```
 
@@ -117,10 +125,11 @@ In your `flake.nix`:
 
 ## Available Packages
 
-- `linux-t2-lts`: Linux 6.6.x LTS kernel with T2 patches
-- `linux-t2-latest`: Linux 6.12.x latest kernel with T2 patches
-- `linux-t2-lts-kernel`: Just the kernel (no modules)
-- `linux-t2-latest-kernel`: Just the kernel (no modules)
+- `linux-t2-stable`: Stable T2 kernel from nixos-hardware (with full module set)
+- `linux-t2-latest`: Latest T2 kernel from nixos-hardware (with full module set)
+- `linux-t2-lts`: Alias for `linux-t2-stable`
+- `linux-t2-stable-kernel`: Just the stable kernel (no modules)
+- `linux-t2-latest-kernel`: Just the latest kernel (no modules)
 - `all`: All kernels bundled together
 
 ## Building Locally
@@ -128,8 +137,8 @@ In your `flake.nix`:
 If you want to build locally instead of using the cache:
 
 ```bash
-# Build LTS kernel
-nix build .#linux-t2-lts
+# Build stable kernel
+nix build .#linux-t2-stable
 
 # Build latest kernel
 nix build .#linux-t2-latest
@@ -140,28 +149,18 @@ nix build .#all
 
 ## How It Works
 
-### Automatic Updates
-
-1. **Daily check** - GitHub Actions runs `scripts/check-kernel-updates.sh` daily at 3 AM UTC
-2. **Version detection** - Script fetches latest versions from kernel.org for both 6.6.x (LTS) and 6.12.x (latest) series
-3. **Smart updates** - If new versions are found:
-   - Automatically updates `flake.nix` with new version and hash
-   - Commits the changes with a descriptive message
-   - Triggers the build workflow
-4. **Efficient building** - Only builds when new versions are available (no wasted CI time!)
-
-### Build and Cache Process
-
-1. **GitHub Actions** runs the build workflow when updates are detected or on manual trigger
-2. **Nix** builds the kernel packages with T2 hardware support
-3. **Cachix** receives and stores the built packages
-4. **Your NixOS machine** downloads pre-built binaries from Cachix instead of building locally
+1. **Uses nixos-hardware** - This flake imports the `hardware.apple-t2` module from [nixos-hardware](https://github.com/NixOS/nixos-hardware) which provides properly patched T2 kernels
+2. **Exposes kernel packages** - Evaluates the T2 module to extract both "stable" and "latest" kernel variants
+3. **Weekly builds** - GitHub Actions runs `nix flake update` weekly to get the latest from nixos-hardware and nixpkgs, then builds the kernels
+4. **Automatic updates** - When nixos-hardware or nixpkgs update their kernels, weekly builds automatically pick up the new versions
+5. **Cachix stores binaries** - Built kernels are pushed to your Cachix cache
+6. **Fast downloads** - Your NixOS machine downloads pre-built binaries from Cachix instead of building locally
 
 This is exactly how caches like `cache.soopy.moe` work - they pre-build packages and serve them to users!
 
 ## T2 Hardware Support
 
-These kernels include patches and configurations for:
+These kernels come from nixos-hardware's T2 module and include patches and configurations for:
 
 - Apple BCE (Buffer Copy Engine)
 - Apple GMUX (GPU multiplexer)
@@ -171,29 +170,23 @@ These kernels include patches and configurations for:
 - Apple DRM
 - CS8409 HDA codec (audio)
 - Broadcom WiFi/Bluetooth (BRCMFMAC)
+- Tiny DFRU (Device Firmware Update)
+- And more from the [t2linux kernel patches](https://github.com/t2linux/linux-t2-patches)
 
 ## Updating Kernel Versions
 
-### Automatic (Recommended)
+Kernel versions are managed by [nixos-hardware](https://github.com/NixOS/nixos-hardware). When they update their T2 kernel patches and versions, this cache will automatically rebuild on the next weekly run.
 
-Kernel versions are updated automatically! The workflow:
-- Checks kernel.org daily for new releases
-- Updates `flake.nix` automatically when new versions are found
-- Commits and builds the new kernels
-- No manual intervention needed!
+To manually trigger a rebuild with the latest versions:
+1. Go to the Actions tab in your GitHub repository
+2. Click on "Build and Cache T2 Kernels"
+3. Click "Run workflow"
+4. The workflow will run `nix flake update` to get the latest nixos-hardware and nixpkgs, then build
 
-### Manual Update
-
-If you want to manually update or switch to different kernel series:
-
-1. Edit `flake.nix`
-2. Update the `version` and `src` for the kernel you want to update
-3. Get new hash: `nix-prefetch-url https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-VERSION.tar.xz`
-4. Commit and push - GitHub Actions will build the new version
-
-Or run the update script locally:
+Or update locally:
 ```bash
-./scripts/check-kernel-updates.sh
+nix flake update
+nix build .#linux-t2-latest
 ```
 
 ## Troubleshooting
@@ -218,7 +211,8 @@ Or run the update script locally:
 
 ## Credits
 
-- [T2Linux](https://t2linux.org) for T2 hardware support
+- [nixos-hardware](https://github.com/NixOS/nixos-hardware) for the excellent T2 module and kernel patches
+- [T2Linux](https://t2linux.org) for T2 hardware support and kernel patches
 - [cache.soopy.moe](https://cache.soopy.moe) for inspiration
 - [Cachix](https://cachix.org) for binary cache hosting
 
