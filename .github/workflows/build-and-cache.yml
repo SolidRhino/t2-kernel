@@ -1,0 +1,110 @@
+name: Build and Cache T2 Kernels
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/**'
+  pull_request:
+  workflow_call: # Allow being called by other workflows
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  build-kernels:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        kernel: [linux-t2-stable, linux-t2-latest]
+      fail-fast: false # Continue building other kernels if one fails
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            max-jobs = auto
+            cores = 0
+            # Enable sandbox for security
+            sandbox = true
+
+      - name: Update flake inputs
+        run: nix flake update
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: ${{ secrets.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          # Push all build outputs to cache
+          pushFilter: "(-source$|nixpkgs\.tar\.gz$)"
+
+      - name: Show kernel info for ${{ matrix.kernel }}
+        run: |
+          echo "Building ${{ matrix.kernel }}..."
+          nix eval .#${{ matrix.kernel }}.kernel.version --raw || echo "Could not get version"
+
+      - name: Build ${{ matrix.kernel }} kernel
+        run: |
+          echo "Building kernel package..."
+          nix build .#${{ matrix.kernel }}-kernel -L --show-trace
+
+      - name: Build ${{ matrix.kernel }} with all modules
+        run: |
+          echo "Building full kernel package set with modules..."
+          nix build .#${{ matrix.kernel }} -L --show-trace
+
+      - name: Verify build
+        run: |
+          nix flake check -L
+
+  build-all:
+    runs-on: ubuntu-latest
+    needs: build-kernels
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            max-jobs = auto
+            cores = 0
+
+      - name: Update flake inputs
+        run: nix flake update
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: ${{ secrets.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          pushFilter: "(-source$|nixpkgs\.tar\.gz$)"
+
+      - name: Build all packages
+        run: |
+          echo "Building all T2 kernel packages..."
+          nix build .#all -L
+
+      - name: Summary
+        run: |
+          echo "✅ All T2 kernels built and cached successfully!"
+          echo ""
+          echo "Available packages:"
+          nix flake show
+          echo ""
+          echo "Kernel versions:"
+          echo "Stable: $(nix eval .#linux-t2-stable.kernel.version --raw)"
+          echo "Latest: $(nix eval .#linux-t2-latest.kernel.version --raw)"
