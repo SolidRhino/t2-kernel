@@ -33,12 +33,14 @@ Add these secrets to your GitHub repository (Settings → Secrets and variables 
 
 Push this repository to GitHub and the workflows will run automatically:
 
-- **Daily at 3 AM UTC** - Checks if nixos-hardware has updates
+- **Every 30 minutes** - Checks if nixos-hardware has updates
   - If updates found: Creates a PR and builds the new kernels
-  - If no updates: Does nothing (saves CI minutes!)
+  - If no updates: Does nothing (quick check only)
 - **On push to main/master** - When flake.nix, flake.lock, or workflows change
 - **On pull requests** - Builds kernels to verify changes work
 - **Manually** - Via workflow_dispatch for on-demand builds
+
+⚠️ **Note:** 30-minute checks use ~2,880 CI minutes/month (plus builds), which exceeds GitHub's free tier (2,000 min/month). You'll need GitHub Pro or paid minutes.
 
 ### 4. Use the Cache in NixOS
 
@@ -152,9 +154,9 @@ nix build .#all
 
 1. **Uses nixos-hardware** - This flake imports the `hardware.apple-t2` module from [nixos-hardware](https://github.com/NixOS/nixos-hardware) which provides properly patched T2 kernels
 2. **Exposes kernel packages** - Directly calls the T2 kernel packages to expose both "stable" and "latest" variants
-3. **Daily update checks** - GitHub Actions checks daily if nixos-hardware has new commits
+3. **Frequent update checks** - GitHub Actions checks every 30 minutes if nixos-hardware has new commits
    - Compares the current and latest nixos-hardware commit hashes
-   - Only proceeds if there's an actual update (saves CI time!)
+   - Only proceeds if there's an actual update
 4. **Smart building** - When updates are found:
    - Creates a Pull Request with the changes
    - Automatically triggers the build workflow
@@ -162,10 +164,13 @@ nix build .#all
    - Pushes to your Cachix cache
 5. **Fast downloads** - Your NixOS machine downloads pre-built binaries from Cachix instead of building locally (saves 1-2 hours!)
 
-**Why this is better than building weekly:**
-- ✅ Updates within 24 hours of upstream changes
-- ✅ Doesn't waste CI minutes when nothing changed
-- ✅ Catches all T2 updates (kernel, firmware, audio, TouchBar, etc.)
+**Benefits:**
+- ✅ **Super responsive** - Updates within 30 minutes of upstream changes
+- ✅ **Catches everything** - Kernel, firmware, audio, TouchBar, etc.
+- ✅ **No manual work** - Fully automated
+
+**Trade-off:**
+- ⚠️ Uses ~2,880 CI minutes/month for checks (exceeds free tier)
 
 This is exactly how caches like `cache.soopy.moe` work - they pre-build packages and serve them to users!
 

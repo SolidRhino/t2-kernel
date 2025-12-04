@@ -2,8 +2,8 @@ name: Check for T2 Updates
 
 on:
   schedule:
-    # Check daily at 3 AM UTC
-    - cron: '0 3 * * *'
+    # Check every 30 minutes for updates
+    - cron: '*/30 * * * *'
   workflow_dispatch: # Allow manual triggering
 
 permissions:
