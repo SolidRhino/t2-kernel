@@ -15,8 +15,11 @@
       # Stable kernel (6.12.x currently)
       linux-t2-stable-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2" { };
 
-      # Latest kernel (6.16.x currently)
-      linux-t2-latest-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2/latest.nix" { };
+      # Latest kernel (6.17.x currently)
+      # Override linux_6_16 with linux_6_17 since 6.16 was removed from nixpkgs
+      linux-t2-latest-kernel = pkgs.callPackage "${nixos-hardware}/apple/t2/pkgs/linux-t2/latest.nix" {
+        linux_6_16 = pkgs.linuxKernel.kernels.linux_6_17;
+      };
 
       # Create full kernel package sets with modules
       linux-t2-stable = pkgs.linuxPackagesFor linux-t2-stable-kernel;
@@ -37,15 +40,15 @@
         linux-t2-stable-kernel = linux-t2-stable.kernel;
         linux-t2-latest-kernel = linux-t2-latest.kernel;
         linux-t2-lts-kernel = linux-t2-stable.kernel;
-      };
 
-      # Make it easy to build all packages
-      packages.${system}.all = pkgs.symlinkJoin {
-        name = "all-t2-kernels";
-        paths = [
-          linux-t2-stable.kernel
-          linux-t2-latest.kernel
-        ];
+        # Bundle all kernels together
+        all = pkgs.symlinkJoin {
+          name = "all-t2-kernels";
+          paths = [
+            linux-t2-stable.kernel
+            linux-t2-latest.kernel
+          ];
+        };
       };
 
       # Re-export the nixos-hardware T2 module for convenience
