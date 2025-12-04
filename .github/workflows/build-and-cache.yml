@@ -44,8 +44,7 @@ jobs:
         with:
           name: ${{ secrets.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          # Push all build outputs to cache
-          pushFilter: "(-source$|nixpkgs\.tar\.gz$)"
+          pushFilter: '(-source$|nixpkgs\.tar\.gz$)'
 
       - name: Show kernel info for ${{ matrix.kernel }}
         run: |
@@ -91,7 +90,7 @@ jobs:
         with:
           name: ${{ secrets.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          pushFilter: "(-source$|nixpkgs\.tar\.gz$)"
+          pushFilter: '(-source$|nixpkgs\.tar\.gz$)'
 
       - name: Build all packages
         run: |
